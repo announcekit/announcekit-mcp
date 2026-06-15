@@ -1,0 +1,20 @@
+{
+  // Bu paket ANA ÜRÜNDEN BAĞIMSIZ derlenir. Ana üründeki tsconfig'i extend
+  // ETMİYORUZ — çünkü ana ürün Node 15/CommonJS dünyasında; biz modern Node +
+  // ESM kullanıyoruz. İzolasyon prensibinin derleme tarafındaki yansıması.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "sourceMap": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

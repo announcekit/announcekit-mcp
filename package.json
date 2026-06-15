@@ -1,0 +1,57 @@
+{
+  "name": "announcekit-mcp",
+  "version": "0.1.0",
+  "description": "AnnounceKit MCP server — connect AI clients (Claude, ChatGPT, Cursor) to AnnounceKit. Manage posts, view stats, and more over the AnnounceKit API.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "announcekit-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/announcekit/announcekit-mcp.git"
+  },
+  "homepage": "https://github.com/announcekit/announcekit-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/announcekit/announcekit-mcp/issues"
+  },
+  "keywords": [
+    "announcekit",
+    "mcp",
+    "model-context-protocol",
+    "changelog",
+    "release-notes",
+    "ai",
+    "claude"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "dev:http": "tsx src/http.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "start:http": "node dist/http.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "express": "^4.22.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.25",
+    "@types/node": "^22.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
