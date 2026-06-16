@@ -24,14 +24,28 @@ export function registerTools(server: McpServer, tools: AnyToolDefinition[], ctx
         inputSchema: tool.inputSchema,
       },
       async (args: Record<string, unknown>) => {
+        // One structured log line per call. NEVER log the token (it never reaches
+        // here — it lives in the transport's auth header) or argument VALUES (they
+        // can hold post content / PII); only argument KEYS, for debugging. Always
+        // stderr — stdout carries the MCP protocol on the stdio transport.
+        const start = Date.now();
+        const argKeys = Object.keys(args ?? {});
         try {
           const result = await tool.handler(args as never, ctx);
           // If it's not plain text, render it as readable JSON.
           const text = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+          console.error(JSON.stringify({
+            ts: new Date().toISOString(), level: "info", tool: tool.name,
+            ok: true, ms: Date.now() - start, args: argKeys,
+          }));
           return { content: [{ type: "text" as const, text }] };
         } catch (err) {
           // On error we don't take the server down; we return isError to the client.
-          console.error(`[tool:${tool.name}] error:`, err);
+          console.error(JSON.stringify({
+            ts: new Date().toISOString(), level: "error", tool: tool.name,
+            ok: false, ms: Date.now() - start, args: argKeys,
+            error: err instanceof Error ? err.message : String(err),
+          }));
           return {
             content: [{ type: "text" as const, text: formatError(err) }],
             isError: true,
