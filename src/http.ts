@@ -27,6 +27,25 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, tools: TOOL_COUNT });
 });
 
+// External base URL of THIS MCP server, derived from the request so it works
+// behind a load balancer (honors x-forwarded-*).
+function externalBase(req: express.Request): string {
+  const proto = String(req.headers["x-forwarded-proto"] ?? req.protocol ?? "https").split(",")[0];
+  const host = req.headers["x-forwarded-host"] ?? req.headers.host;
+  return `${proto}://${host}`;
+}
+
+const resourceMetadataUrl = (req: express.Request) => `${externalBase(req)}/.well-known/oauth-protected-resource`;
+
+// OAuth 2.0 Protected Resource Metadata (RFC 9728): tells MCP clients which
+// authorization server to use (the AnnounceKit app — config.apiBaseUrl).
+app.get("/.well-known/oauth-protected-resource", (req, res) => {
+  res.json({
+    resource: `${externalBase(req)}/mcp`,
+    authorization_servers: [config.apiBaseUrl],
+  });
+});
+
 function bearer(req: express.Request): string | null {
   const h = req.header("authorization") ?? "";
   return h.startsWith("Bearer ") ? h.slice("Bearer ".length).trim() : null;
@@ -35,6 +54,9 @@ function bearer(req: express.Request): string | null {
 app.post("/mcp", async (req, res) => {
   const token = bearer(req);
   if (!token) {
+    // Point the client at our resource metadata so it can discover the OAuth
+    // authorization server and start the flow (RFC 9728 / MCP authorization).
+    res.set("WWW-Authenticate", `Bearer resource_metadata="${resourceMetadataUrl(req)}"`);
     res.status(401).json({
       jsonrpc: "2.0",
       error: { code: -32001, message: "Missing or invalid Authorization: Bearer token" },

@@ -30,6 +30,12 @@ export interface ToolDefinition<Shape extends ZodRawShape = ZodRawShape> {
   description: string;
   /** Parameter schema (zod). The MCP SDK validates arguments with it. */
   inputSchema: Shape;
+  /**
+   * Optional MCP UI hints. Usually omitted — the registry derives sensible
+   * defaults (read-only for list_/get_ tools; never destructive). Set only to
+   * override.
+   */
+  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
   /** The actual work. Receives validated arguments and the context. */
   handler: (args: z.infer<z.ZodObject<Shape>>, ctx: ToolContext) => Promise<ToolResult>;
 }
