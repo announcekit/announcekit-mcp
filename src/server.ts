@@ -11,6 +11,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolContext } from "./core/tool.js";
 import { registerTools } from "./core/registry.js";
 import { allTools } from "./tools/index.js";
+import { registerPrompts } from "./prompts/index.js";
 
 export const SERVER_INFO = { name: "announcekit-mcp", version: "0.1.0" };
 export const TOOL_COUNT = allTools.length;
@@ -30,5 +31,6 @@ const INSTRUCTIONS = [
 export function buildServer(ctx: ToolContext): McpServer {
   const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS });
   registerTools(server, allTools, ctx);
+  registerPrompts(server);
   return server;
 }
