@@ -16,12 +16,20 @@ import { formatError } from "./errors.js";
 
 export function registerTools(server: McpServer, tools: AnyToolDefinition[], ctx: ToolContext): void {
   for (const tool of tools) {
+    // MCP UI hints. Read tools (list_*/get_*) are read-only, so clients (e.g.
+    // Claude's connector) can group them as "always allow"; everything else is a
+    // write that "needs approval". We expose NO delete/destructive tools (policy),
+    // so destructiveHint is always false. A tool may override via its annotations.
+    const readOnlyHint = tool.annotations?.readOnlyHint ?? /^(list|get)_/.test(tool.name);
+    const destructiveHint = tool.annotations?.destructiveHint ?? false;
+
     server.registerTool(
       tool.name,
       {
         title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
+        annotations: { readOnlyHint, destructiveHint },
       },
       async (args: Record<string, unknown>) => {
         // One structured log line per call. NEVER log the token (it never reaches
