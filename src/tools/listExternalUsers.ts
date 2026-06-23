@@ -7,7 +7,9 @@ import { z } from "zod";
 import { defineTool } from "../core/tool.js";
 
 interface ExternalUsersResult {
-  externalUserCount: number;
+  // externalUserCount returns AudienceCount: an exact count, or an approximate
+  // one flagged `capped: true` on very large projects (see ANN-1413).
+  externalUserCount: { count: number | null; capped: boolean };
   externalUsers: {
     page: number;
     pages: number;
@@ -37,7 +39,10 @@ export default defineTool({
   handler: async ({ project_id, page }, { client }) => {
     const data = await client.graphql<ExternalUsersResult>(
       `query ListAudience($project_id: ID!, $page: Int) {
-         externalUserCount(project_id: $project_id)
+         externalUserCount(project_id: $project_id) {
+           count
+           capped
+         }
          externalUsers(project_id: $project_id, page: $page) {
            page
            pages
@@ -54,6 +59,11 @@ export default defineTool({
        }`,
       { project_id, page },
     );
-    return { total: data.externalUserCount, ...data.externalUsers };
+    return {
+      total: data.externalUserCount.count,
+      // On very large projects the count is approximate (capped); surface that.
+      total_is_approximate: data.externalUserCount.capped,
+      ...data.externalUsers,
+    };
   },
 });
