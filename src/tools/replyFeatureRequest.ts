@@ -6,7 +6,9 @@ import { z } from "zod";
 import { defineTool } from "../core/tool.js";
 
 interface Result {
-  replyFeatureRequest: { id: string };
+  // external_user_id is the feature request's author. It's null when the request
+  // is anonymous/team-authored, in which case there is no one to email.
+  replyFeatureRequest: { id: string; external_user_id: string | null };
 }
 
 export default defineTool({
@@ -24,10 +26,18 @@ export default defineTool({
   handler: async ({ project_id, feature_request_id, content, subject }, { client }) => {
     const data = await client.graphql<Result>(
       `mutation ReplyFR($project_id:ID!,$feature_request_id:ID!,$content:String,$subject:String){
-         replyFeatureRequest(project_id:$project_id,feature_request_id:$feature_request_id,content:$content,subject:$subject){ id }
+         replyFeatureRequest(project_id:$project_id,feature_request_id:$feature_request_id,content:$content,subject:$subject){ id external_user_id }
        }`,
       { project_id, feature_request_id, content, subject },
     );
-    return { replied: true, feature_request_id: data.replyFeatureRequest.id };
+    const notificationSent = Boolean(data.replyFeatureRequest.external_user_id);
+    return {
+      replied: true,
+      feature_request_id: data.replyFeatureRequest.id,
+      notification_sent: notificationSent,
+      note: notificationSent
+        ? "Reply saved and the feature request's author was notified by email."
+        : "Reply saved. No notification was sent — this feature request has no external-user author to email.",
+    };
   },
 });
