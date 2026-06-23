@@ -6,9 +6,14 @@
 
 import { z } from "zod";
 import { defineTool } from "../core/tool.js";
+import { ValidationError } from "../core/errors.js";
 
 interface UpdateLocaleResult {
   updatePostLocale: boolean;
+}
+
+interface ProjectLocalesResult {
+  project: { locales: Array<{ locale_id: string }> };
 }
 
 export default defineTool({
@@ -26,12 +31,31 @@ export default defineTool({
     body: z.string().describe("Body in the target language (HTML supported)"),
   },
   handler: async ({ project_id, post_id, locale, title, body }, { client }) => {
+    // Validate the locale before the mutation: the backend only accepts locales
+    // already enabled on the project and otherwise throws an opaque
+    // "Unrecognized project locale". Surface a clear, actionable error instead.
+    const { project } = await client.graphql<ProjectLocalesResult>(
+      `query ProjectLocales($project_id: ID!) {
+         project(project_id: $project_id) { locales { locale_id } }
+       }`,
+      { project_id },
+    );
+    const available = project.locales.map((l) => l.locale_id);
+    const matched = available.find((id) => id.toLowerCase() === locale.toLowerCase());
+    if (!matched) {
+      throw new ValidationError(
+        `Locale '${locale}' is not enabled on this project. ` +
+          `Available locales: ${available.length ? available.join(", ") : "(none)"}. ` +
+          `Enable it in the project's locale settings first.`,
+      );
+    }
+
     const data = await client.graphql<UpdateLocaleResult>(
       `mutation UpdatePostLocale($project_id: ID!, $post_id: ID!, $locale_id: String!, $title: String!, $body: String!) {
          updatePostLocale(project_id: $project_id, post_id: $post_id, locale_id: $locale_id, title: $title, body: $body)
        }`,
-      { project_id, post_id, locale_id: locale, title, body },
+      { project_id, post_id, locale_id: matched, title, body },
     );
-    return { updated: data.updatePostLocale, post_id, locale };
+    return { updated: data.updatePostLocale, post_id, locale: matched };
   },
 });
