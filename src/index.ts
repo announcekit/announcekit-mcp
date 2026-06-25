@@ -27,7 +27,7 @@ async function main(): Promise<void> {
         password: config.auth.password,
       });
 
-  const client = new AnnouncekitClient({ graphqlUrl: config.graphqlUrl, auth });
+  const client = new AnnouncekitClient({ graphqlUrl: config.graphqlUrl, auth, clientLabel: "announcekit-mcp-stdio" });
   const server = buildServer({ client });
 
   await server.connect(new StdioServerTransport());
