@@ -60,6 +60,7 @@ import createRoadmapStatus from "./createRoadmapStatus.js";
 
 // imports
 import importFromGithub from "./importFromGithub.js";
+import getImportStatus from "./getImportStatus.js";
 
 export const allTools: AnyToolDefinition[] = [
   // projects & labels
@@ -102,4 +103,5 @@ export const allTools: AnyToolDefinition[] = [
   createRoadmapStatus,
   // imports
   importFromGithub,
+  getImportStatus,
 ];
