@@ -23,6 +23,9 @@ export class AuthError extends McpError {}
 /** The Announcekit API returned an error (GraphQL errors or an HTTP failure). */
 export class ApiError extends McpError {}
 
+/** Caller-supplied input failed validation before any API call was made. */
+export class ValidationError extends McpError {}
+
 /**
  * Turns any error into a single-line message to show the client.
  * Handles unknown error shapes safely.
