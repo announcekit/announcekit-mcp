@@ -8,7 +8,7 @@ import { z } from "zod";
 import { defineTool } from "../core/tool.js";
 
 interface GenerateResult {
-  autoGeneratePostContents: Array<{ body: string; finished: boolean }>;
+  autoGeneratePostContents: Array<{ body: string }>;
 }
 
 interface ProjectInfo {
@@ -58,14 +58,14 @@ export default defineTool({
       `mutation GenerateDraft($project_id: ID!, $locale_id: ID!, $type: String!, $options: JSONObject!) {
          autoGeneratePostContents(project_id: $project_id, locale_id: $locale_id, type: $type, options: $options) {
            body
-           finished
          }
        }`,
       {
         project_id,
         locale_id: localeId,
         type: type ?? "new-feature",
-        options: { title, product: productName, tone: tone ?? "friendly" },
+        // JSONObject scalar parses its input with JSON.parse, so it must be a JSON string.
+        options: JSON.stringify({ title, product: productName, tone: tone ?? "friendly" }),
       },
     );
 
