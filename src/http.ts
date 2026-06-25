@@ -69,6 +69,7 @@ app.post("/mcp", async (req, res) => {
   const client = new AnnouncekitClient({
     graphqlUrl: config.graphqlUrl,
     auth: new TokenAuthProvider(token),
+    clientLabel: "announcekit-mcp-http",
   });
   const server = buildServer({ client });
   // Stateless mode: no session id, one server+transport per request.

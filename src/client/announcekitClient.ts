@@ -12,6 +12,11 @@ import { ApiError } from "../core/errors.js";
 interface ClientOptions {
   graphqlUrl: string;
   auth: AuthProvider;
+  /**
+   * Identifies which MCP transport made this request (e.g. "announcekit-mcp-http"
+   * / "announcekit-mcp-stdio"), sent as the `X-AnnounceKit-Client` header.
+   */
+  clientLabel?: string;
 }
 
 interface GraphQLResponse<T> {
@@ -31,7 +36,11 @@ export class AnnouncekitClient {
 
     const res = await fetch(this.opts.graphqlUrl, {
       method: "POST",
-      headers: { "content-type": "application/json", ...authHeaders },
+      headers: {
+        "content-type": "application/json",
+        ...(this.opts.clientLabel ? { "x-announcekit-client": this.opts.clientLabel } : {}),
+        ...authHeaders,
+      },
       body: JSON.stringify({ query, variables }),
     });
 
