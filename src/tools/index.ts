@@ -58,10 +58,6 @@ import listRoadmap from "./listRoadmap.js";
 import createRoadmapItem from "./createRoadmapItem.js";
 import createRoadmapStatus from "./createRoadmapStatus.js";
 
-// imports
-import importFromGithub from "./importFromGithub.js";
-import getImportStatus from "./getImportStatus.js";
-
 export const allTools: AnyToolDefinition[] = [
   // projects & labels
   listProjects,
@@ -101,7 +97,4 @@ export const allTools: AnyToolDefinition[] = [
   listRoadmap,
   createRoadmapItem,
   createRoadmapStatus,
-  // imports
-  importFromGithub,
-  getImportStatus,
 ];
