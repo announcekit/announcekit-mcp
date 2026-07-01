@@ -26,7 +26,7 @@ carry a scope:
 | Scope   | Can do                                            |
 | ------- | ------------------------------------------------- |
 | `read`  | queries only (the 15 read tools)                  |
-| `write` | read + create/update (all 30 tools, no deletes)   |
+| `write` | read + create/update (all 29 tools, no deletes)   |
 
 A token acts on behalf of its creator; if that member loses access to the
 project, the token stops working — recreate it to replace.
@@ -76,20 +76,20 @@ See [.env.example](.env.example).
 
 ---
 
-## Tools (30)
+## Tools (29)
 
 **Read (15):** `list_projects`, `list_labels`, `list_posts`, `get_post`,
 `list_post_templates`, `get_post_stats`, `get_post_status_summary`,
 `list_feedback`, `list_activities`, `get_nps`, `list_segments`,
 `list_external_users`, `list_feeds`, `list_feature_requests`, `list_roadmap`
 
-**Write / create / update (15):** `save_label`, `create_post`, `update_post`,
+**Write / create / update (14):** `save_label`, `create_post`, `update_post`,
 `publish_post`, `schedule_post`, `update_post_locale`, `save_post_template`,
 `generate_post_draft`, `improve_text`, `create_feature_request`,
 `comment_feature_request`, `reply_feature_request`, `create_roadmap_item`,
-`create_roadmap_status`, `import_from_github`
+`create_roadmap_status`
 
-A `read` token exposes the 15 read tools; a `write` token exposes all 30.
+A `read` token exposes the 15 read tools; a `write` token exposes all 29.
 
 ---
 
