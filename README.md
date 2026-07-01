@@ -61,7 +61,7 @@ Register it with your client. Example for Claude Code:
 ```bash
 claude mcp add announcekit \
   --env ANNOUNCEKIT_TOKEN=ak_pat_… \
-  -- announcekit-mcp
+  -- npx announcekit-mcp
 ```
 
 ### Environment variables
