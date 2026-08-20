@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { defineTool } from "../core/tool.js";
 import { fetchPost, preservedVars, SAVE_POST_MUTATION, SavePostResult } from "./postCommon.js";
+import { resolveTargetingInput } from "./widgetTargeting.js";
 
 export default defineTool({
   name: "update_post",
@@ -13,8 +14,8 @@ export default defineTool({
   description:
     "Edits an existing post (draft or live). Pass only what you want to change: " +
     "title/body/summary (for one locale), labels, visibility or expiry dates, or " +
-    "pinned state. Everything else is preserved. Does NOT publish a draft — use " +
-    "publish_post for that.",
+    "pinned state, or which widgets it is limited to. Everything else is " +
+    "preserved. Does NOT publish a draft — use publish_post for that.",
   inputSchema: {
     project_id: z.string().describe("The project ID"),
     post_id: z.string().describe("The post ID to edit"),
@@ -29,6 +30,22 @@ export default defineTool({
     visible_at: z.string().optional().describe("New visibility date (ISO or YYYY-MM-DD)"),
     expire_at: z.string().optional().describe("New expiry date (ISO or YYYY-MM-DD)"),
     is_pinned: z.boolean().optional().describe("Pin/unpin the post"),
+    widget_ids: z
+      .array(z.string())
+      .optional()
+      .describe(
+        "Limit the post to these widgets (ids from list_widgets). Pass an empty " +
+          "array to remove the limit so it appears in every widget. Omit to leave " +
+          "the current targeting alone.",
+      ),
+    segment_filters: z
+      .string()
+      .optional()
+      .describe(
+        'Advanced: replace the whole audience rule, as JSON of the form ' +
+          '\'{"filter":["equal","$widget","12"]}\'. Takes precedence over widget_ids. ' +
+          'Pass "null" to clear it.',
+      ),
   },
   handler: async (args, { client }) => {
     const post = await fetchPost(client, args.project_id, args.post_id);
@@ -61,6 +78,9 @@ export default defineTool({
     if (args.visible_at !== undefined) vars.visible_at = args.visible_at;
     if (args.expire_at !== undefined) vars.expire_at = args.expire_at;
     if (args.is_pinned !== undefined) vars.is_pinned = args.is_pinned;
+
+    const targeting = resolveTargetingInput(args);
+    if (targeting !== undefined) vars.segment_filters = targeting;
 
     const data = await client.graphql<SavePostResult>(SAVE_POST_MUTATION, vars);
     return { updated: true, post: data.savePost };

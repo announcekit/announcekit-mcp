@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { defineTool } from "../core/tool.js";
+import { resolveTargetingInput } from "./widgetTargeting.js";
 
 interface ProjectLocaleResult {
   project: { locale: string };
@@ -30,8 +31,9 @@ export default defineTool({
     "Creates a new post (announcement) in a project. By default it is saved as " +
     "a DRAFT so the user can review and publish it from the Announcekit UI. " +
     "Supports an optional locale (defaults to the project's default locale), " +
-    "labels, and scheduling via visible_at. Only set is_draft=false to publish " +
-    "immediately when the user explicitly asks to.",
+    "labels, scheduling via visible_at, and limiting the post to specific " +
+    "widgets. Only set is_draft=false to publish immediately when the user " +
+    "explicitly asks to.",
   inputSchema: {
     project_id: z.string().describe("The project ID (from list_projects)"),
     title: z.string().describe("Post title"),
@@ -41,12 +43,27 @@ export default defineTool({
     is_draft: z.boolean().optional().describe("Save as draft. Defaults to true (recommended)."),
     labels: z.array(z.string()).optional().describe("Label IDs to assign (from list_labels)."),
     visible_at: z.string().optional().describe("Schedule the visibility date (YYYY-MM-DD). If omitted, the post becomes visible now when published."),
+    widget_ids: z
+      .array(z.string())
+      .optional()
+      .describe(
+        "Limit the post to these widgets (ids from list_widgets). Omit, or pass " +
+          "an empty array, and the post appears in every widget of the project.",
+      ),
+    segment_filters: z
+      .string()
+      .optional()
+      .describe(
+        'Advanced: set the audience rule directly, as JSON of the form ' +
+          '\'{"filter":["equal","$widget","12"]}\'. Takes precedence over widget_ids.',
+      ),
     type: z
       .enum(["post", "notification", "nps"])
       .optional()
       .describe("Post kind: 'post' (default, changelog), 'notification' (in-app), or 'nps' (NPS survey). nps/notification may require a paid plan."),
   },
-  handler: async ({ project_id, title, body, summary, locale, is_draft, labels, visible_at, type }, { client }) => {
+  handler: async (args, { client }) => {
+    const { project_id, title, body, summary, locale, is_draft, labels, visible_at, type } = args;
     const draft = is_draft ?? true; // default: safe draft
 
     // Resolve the locale: use the provided one, otherwise the project's default.
@@ -69,6 +86,7 @@ export default defineTool({
          $labels: [ID!]
          $visible_at: Date
          $type: String
+         $segment_filters: JSONObject
        ) {
          savePost(
            project_id: $project_id
@@ -77,6 +95,7 @@ export default defineTool({
            labels: $labels
            visible_at: $visible_at
            type: $type
+           segment_filters: $segment_filters
          ) {
            id
            status
@@ -91,6 +110,7 @@ export default defineTool({
         labels,
         visible_at,
         type,
+        segment_filters: resolveTargetingInput(args),
       }
     );
 
