@@ -5,8 +5,10 @@
 
 import { z } from "zod";
 import { defineTool } from "../core/tool.js";
+import { summarizeTargeting } from "./widgetTargeting.js";
 
 interface PostsResult {
+  widgets: Array<{ id: string; name: string }>;
   posts: {
     count: number;
     page: number;
@@ -16,6 +18,7 @@ interface PostsResult {
       status: string | null;
       is_draft: boolean;
       visible_at: string;
+      segment_filters: string | null;
       defaultContent: { title: string };
     }>;
   };
@@ -26,8 +29,9 @@ export default defineTool({
   title: "List Posts",
   description:
     "Lists the posts (announcements) in a project. For each post it returns " +
-    "the status (Live/Draft/Scheduled/Expired/Paused), title, and visibility " +
-    "date. Supports pagination and a keyword/status filter.",
+    "the status (Live/Draft/Scheduled/Expired/Paused), title, visibility date, " +
+    "and which widgets it is limited to. Supports pagination and a " +
+    "keyword/status filter.",
   inputSchema: {
     project_id: z.string().describe("The project ID (obtained from list_projects)"),
     page: z.number().int().min(0).optional().describe("Page number, starting at 0 (default 0)"),
@@ -46,12 +50,20 @@ export default defineTool({
              status
              is_draft
              visible_at
+             segment_filters
              defaultContent { title }
            }
          }
+         widgets(project_id: $project_id) { id name }
        }`,
       { project_id, page, query, postStatus }
     );
-    return data.posts;
+    return {
+      ...data.posts,
+      list: data.posts.list.map(({ segment_filters, ...post }) => ({
+        ...post,
+        targeting: summarizeTargeting(segment_filters, data.widgets),
+      })),
+    };
   },
 });

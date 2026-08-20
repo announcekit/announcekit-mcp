@@ -16,6 +16,9 @@ import listProjects from "./listProjects.js";
 import listLabels from "./listLabels.js";
 import saveLabel from "./saveLabel.js";
 
+// widgets (read-only; widgets are configured in the dashboard)
+import listWidgets from "./listWidgets.js";
+
 // post lifecycle (no deletes)
 import listPosts from "./listPosts.js";
 import getPost from "./getPost.js";
@@ -63,6 +66,8 @@ export const allTools: AnyToolDefinition[] = [
   listProjects,
   listLabels,
   saveLabel,
+  // widgets
+  listWidgets,
   // post lifecycle
   listPosts,
   getPost,
