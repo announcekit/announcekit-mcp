@@ -12,6 +12,7 @@ import express from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { loadConfig } from "./config.js";
+import { AuthError } from "./core/errors.js";
 import { TokenAuthProvider } from "./client/auth.js";
 import { AnnouncekitClient } from "./client/announcekitClient.js";
 import { buildServer, TOOL_COUNT } from "./server.js";
@@ -51,17 +52,21 @@ function bearer(req: express.Request): string | null {
   return h.startsWith("Bearer ") ? h.slice("Bearer ".length).trim() : null;
 }
 
+function unauthorized(req: express.Request, res: express.Response): void {
+  // Point the client at our resource metadata so it can discover the OAuth
+  // authorization server and start the flow (RFC 9728 / MCP authorization).
+  res.set("WWW-Authenticate", `Bearer resource_metadata="${resourceMetadataUrl(req)}"`);
+  res.status(401).json({
+    jsonrpc: "2.0",
+    error: { code: -32001, message: "Missing or invalid Authorization: Bearer token" },
+    id: null,
+  });
+}
+
 app.post("/mcp", async (req, res) => {
   const token = bearer(req);
   if (!token) {
-    // Point the client at our resource metadata so it can discover the OAuth
-    // authorization server and start the flow (RFC 9728 / MCP authorization).
-    res.set("WWW-Authenticate", `Bearer resource_metadata="${resourceMetadataUrl(req)}"`);
-    res.status(401).json({
-      jsonrpc: "2.0",
-      error: { code: -32001, message: "Missing or invalid Authorization: Bearer token" },
-      id: null,
-    });
+    unauthorized(req, res);
     return;
   }
 
@@ -71,6 +76,26 @@ app.post("/mcp", async (req, res) => {
     auth: new TokenAuthProvider(token),
     clientLabel: "announcekit-mcp-http",
   });
+  // Validate before dispatch: tool errors are returned inside HTTP 200 and
+  // cannot trigger the client's OAuth recovery flow.
+  try {
+    const data = await client.graphql<{ me: { id: string } | null }>("query { me { id } }");
+    if (!data.me) {
+      unauthorized(req, res);
+      return;
+    }
+  } catch (err) {
+    if (err instanceof AuthError) {
+      unauthorized(req, res);
+    } else {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        error: { code: -32603, message: "Failed to validate access token" },
+        id: null,
+      });
+    }
+    return;
+  }
   const server = buildServer({ client });
   // Stateless mode: no session id, one server+transport per request.
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
