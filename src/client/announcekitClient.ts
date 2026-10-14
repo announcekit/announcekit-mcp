@@ -7,7 +7,7 @@
  */
 
 import type { AuthProvider } from "./auth.js";
-import { ApiError } from "../core/errors.js";
+import { ApiError, AuthError } from "../core/errors.js";
 
 interface ClientOptions {
   graphqlUrl: string;
@@ -43,6 +43,10 @@ export class AnnouncekitClient {
       },
       body: JSON.stringify({ query, variables }),
     });
+
+    if (res.status === 401) {
+      throw new AuthError("Invalid or expired access token.");
+    }
 
     if (!res.ok) {
       throw new ApiError(`HTTP ${res.status} ${res.statusText}`);

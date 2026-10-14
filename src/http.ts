@@ -8,10 +8,12 @@
  * statelessly: a fresh MCP server + transport per request.
  */
 
+import { createHash } from "node:crypto";
 import express from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { loadConfig } from "./config.js";
+import { AuthError } from "./core/errors.js";
 import { TokenAuthProvider } from "./client/auth.js";
 import { AnnouncekitClient } from "./client/announcekitClient.js";
 import { buildServer, TOOL_COUNT } from "./server.js";
@@ -51,17 +53,44 @@ function bearer(req: express.Request): string | null {
   return h.startsWith("Bearer ") ? h.slice("Bearer ".length).trim() : null;
 }
 
+function unauthorized(req: express.Request, res: express.Response): void {
+  // Point the client at our resource metadata so it can discover the OAuth
+  // authorization server and start the flow (RFC 9728 / MCP authorization).
+  res.set("WWW-Authenticate", `Bearer resource_metadata="${resourceMetadataUrl(req)}"`);
+  res.status(401).json({
+    jsonrpc: "2.0",
+    error: { code: -32001, message: "Missing or invalid Authorization: Bearer token" },
+    id: null,
+  });
+}
+
+// Successful token checks are cached briefly: the server is stateless, so one
+// client session (initialize, tools/list, tools/call, ...) would otherwise cost
+// a `me` lookup per request. Only valid tokens are cached, keyed by a hash so
+// raw tokens are not kept around. A revoked token works for at most the TTL.
+const TOKEN_CACHE_TTL_MS = 60_000;
+const TOKEN_CACHE_MAX = 10_000;
+const validTokens = new Map<string, number>(); // sha256(token) -> expiresAt
+
+async function isValidToken(client: AnnouncekitClient, token: string): Promise<boolean> {
+  const key = createHash("sha256").update(token).digest("hex");
+  const expiresAt = validTokens.get(key);
+  if (expiresAt !== undefined && expiresAt > Date.now()) return true;
+  validTokens.delete(key);
+
+  const data = await client.graphql<{ me: { id: string } | null }>("query { me { id } }");
+  if (!data.me) return false;
+
+  // Map keeps insertion order, so the first key is the oldest entry.
+  if (validTokens.size >= TOKEN_CACHE_MAX) validTokens.delete(validTokens.keys().next().value!);
+  validTokens.set(key, Date.now() + TOKEN_CACHE_TTL_MS);
+  return true;
+}
+
 app.post("/mcp", async (req, res) => {
   const token = bearer(req);
   if (!token) {
-    // Point the client at our resource metadata so it can discover the OAuth
-    // authorization server and start the flow (RFC 9728 / MCP authorization).
-    res.set("WWW-Authenticate", `Bearer resource_metadata="${resourceMetadataUrl(req)}"`);
-    res.status(401).json({
-      jsonrpc: "2.0",
-      error: { code: -32001, message: "Missing or invalid Authorization: Bearer token" },
-      id: null,
-    });
+    unauthorized(req, res);
     return;
   }
 
@@ -71,6 +100,29 @@ app.post("/mcp", async (req, res) => {
     auth: new TokenAuthProvider(token),
     clientLabel: "announcekit-mcp-http",
   });
+  // Validate before dispatch: tool errors are returned inside HTTP 200 and
+  // cannot trigger the client's OAuth recovery flow.
+  try {
+    if (!(await isValidToken(client, token))) {
+      unauthorized(req, res);
+      return;
+    }
+  } catch (err) {
+    if (err instanceof AuthError) {
+      unauthorized(req, res);
+    } else {
+      console.error(JSON.stringify({
+        ts: new Date().toISOString(), level: "error", msg: "token validation failed",
+        error: err instanceof Error ? err.message : String(err),
+      }));
+      res.status(500).json({
+        jsonrpc: "2.0",
+        error: { code: -32603, message: "Failed to validate access token" },
+        id: null,
+      });
+    }
+    return;
+  }
   const server = buildServer({ client });
   // Stateless mode: no session id, one server+transport per request.
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });

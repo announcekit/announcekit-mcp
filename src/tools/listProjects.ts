@@ -4,6 +4,7 @@
  */
 
 import { defineTool } from "../core/tool.js";
+import { AuthError } from "../core/errors.js";
 
 interface MeProjects {
   me: {
@@ -11,7 +12,7 @@ interface MeProjects {
       member_role: string;
       project: { id: string; name: string; slug: string; website?: string };
     }>;
-  };
+  } | null;
 }
 
 export default defineTool({
@@ -26,6 +27,8 @@ export default defineTool({
          me { memberships { member_role project { id name slug website } } }
        }`
     );
+    // `me` is null when the token is invalid or expired.
+    if (!data.me) throw new AuthError("Invalid or expired access token.");
     const projects = data.me.memberships.map((m) => ({
       ...m.project,
       role: m.member_role,
