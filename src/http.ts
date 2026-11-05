@@ -13,7 +13,7 @@ import express from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { loadConfig } from "./config.js";
-import { AuthError } from "./core/errors.js";
+import { AuthError, RateLimitError } from "./core/errors.js";
 import { TokenAuthProvider } from "./client/auth.js";
 import { AnnouncekitClient } from "./client/announcekitClient.js";
 import { buildServer, TOOL_COUNT } from "./server.js";
@@ -110,6 +110,17 @@ app.post("/mcp", async (req, res) => {
   } catch (err) {
     if (err instanceof AuthError) {
       unauthorized(req, res);
+    } else if (err instanceof RateLimitError) {
+      console.error(JSON.stringify({
+        ts: new Date().toISOString(), level: "warn", msg: "token validation rate limited",
+        retry_after: err.retryAfterSeconds,
+      }));
+      if (err.retryAfterSeconds !== undefined) res.set("Retry-After", String(err.retryAfterSeconds));
+      res.status(429).json({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: err.message },
+        id: null,
+      });
     } else {
       console.error(JSON.stringify({
         ts: new Date().toISOString(), level: "error", msg: "token validation failed",
