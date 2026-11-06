@@ -23,6 +23,16 @@ export class AuthError extends McpError {}
 /** The Announcekit API returned an error (GraphQL errors or an HTTP failure). */
 export class ApiError extends McpError {}
 
+/** The Announcekit API rate-limited the request (HTTP 429). Not retried. */
+export class RateLimitError extends ApiError {
+  constructor(readonly retryAfterSeconds?: number) {
+    const wait = retryAfterSeconds === undefined ? "about a minute" : `about ${retryAfterSeconds} seconds`;
+    super(
+      `AnnounceKit is rate limiting requests. Stop parallel or repeated calls, wait ${wait}, then continue one call at a time.`
+    );
+  }
+}
+
 /** Caller-supplied input failed validation before any API call was made. */
 export class ValidationError extends McpError {}
 

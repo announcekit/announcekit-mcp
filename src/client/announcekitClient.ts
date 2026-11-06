@@ -7,7 +7,7 @@
  */
 
 import type { AuthProvider } from "./auth.js";
-import { ApiError, AuthError } from "../core/errors.js";
+import { ApiError, AuthError, RateLimitError } from "../core/errors.js";
 
 interface ClientOptions {
   graphqlUrl: string;
@@ -46,6 +46,12 @@ export class AnnouncekitClient {
 
     if (res.status === 401) {
       throw new AuthError("Invalid or expired access token.");
+    }
+
+    if (res.status === 429) {
+      // Only delay-seconds is used; an HTTP-date or invalid value falls back to the default wait.
+      const retryAfter = res.headers.get("retry-after")?.trim() ?? "";
+      throw new RateLimitError(/^\d+$/.test(retryAfter) ? Number(retryAfter) : undefined);
     }
 
     if (!res.ok) {
